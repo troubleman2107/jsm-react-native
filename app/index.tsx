@@ -6,17 +6,19 @@ import {
   Text,
   View,
 } from "react-native";
-import React from "react";
+import React, { useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { Link, router } from "expo-router";
 import { images } from "@/constants";
 import CustomButton from "@/components/CustomButton";
 
 const App = () => {
+  const [isLoading, setIsLoading] = useState(false);
+
   return (
     <SafeAreaView className="bg-primary h-full">
       <ScrollView contentContainerStyle={{ height: "100%" }}>
-        <View className="w-full flex items-center h-full px-4">
+        <View className="w-full flex items-center justify-center h-full px-4 min-h-[85vh]">
           <Image
             source={images.logo}
             className="w-[130px] h-[94px]"
@@ -50,11 +52,13 @@ const App = () => {
             handlePress={() => {
               router.push("/home");
             }}
+            isLoading={isLoading}
             title="Continue with Email"
             containerStyles="w-full mt-7"
           />
         </View>
       </ScrollView>
+      <StatusBar style="light" backgroundColor="#161622" />
     </SafeAreaView>
   );
 };
