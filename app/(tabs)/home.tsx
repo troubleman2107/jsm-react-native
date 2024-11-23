@@ -3,8 +3,8 @@ import React from "react";
 
 const Home = () => {
   return (
-    <View>
-      <Text>Home</Text>
+    <View className="flex flex-1 justify-center items-center font-pregular">
+      <Text className="font-pbold text-2xl">Yêu Thảo ❤️🫰</Text>
     </View>
   );
 };
