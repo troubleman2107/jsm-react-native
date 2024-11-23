@@ -8,8 +8,8 @@ const App = () => {
     <View className="flex justify-center items-center flex-1">
       <Text className="text-primary text-3xl font-pblack">Hello Word</Text>
       <StatusBar style="auto" />
-      <Link href={"/profile"} style={{ color: "blue" }}>
-        Go to profile
+      <Link href={"/home"} style={{ color: "blue" }}>
+        Go to home
       </Link>
     </View>
   );
