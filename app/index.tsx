@@ -50,7 +50,7 @@ const App = () => {
           </Text>
           <CustomButton
             handlePress={() => {
-              router.push("/home");
+              router.push("/sign-in");
             }}
             isLoading={isLoading}
             title="Continue with Email"
