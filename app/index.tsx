@@ -21,15 +21,18 @@ const App: React.FC = () => {
   useEffect(() => {
     // Function to be triggered at a specific time
     const triggerFunction = () => {
-      console.log("run this");
       // Remove the isNotificationRunning check
-      // Clear any existing interval first
+      if (timeCheckRef.current) {
+        clearInterval(timeCheckRef.current);
+      }
+
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
 
       // Start a new interval
       intervalRef.current = setInterval(() => {
+        console.log("Run line 36");
         // Directly call the async function to schedule notification
         scheduleRepeatingNotification();
       }, 3000);
@@ -38,13 +41,11 @@ const App: React.FC = () => {
     // Set up an interval to check the time every second
     timeCheckRef.current = setInterval(() => {
       const now = new Date();
-
       // Check if current time matches your desired time (12:17 in this example)
-      if (now.getHours() === 12 && now.getMinutes() === 36) {
+      if (now.getHours() === 21 && now.getMinutes() === 49) {
         triggerFunction();
       }
     }, 1000);
-
     // Cleanup interval on component unmount
     return () => {
       if (timeCheckRef.current) {
@@ -54,9 +55,14 @@ const App: React.FC = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, []); // Remove dependency on isNotificationRunning
+  }, []);
+
+  const testFunc = () => {
+    console.log("run testFunc");
+  };
 
   const scheduleRepeatingNotification = async () => {
+    console.log("notification !!!");
     try {
       // Create a channel for Android
       if (Platform.OS === "android") {
@@ -98,6 +104,7 @@ const App: React.FC = () => {
 
     // Stop the notification interval
     if (intervalRef.current) {
+      console.log("clear interval", intervalRef.current);
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
