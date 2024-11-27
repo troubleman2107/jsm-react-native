@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useRef } from "react";
 import { View, Text, Button, Platform } from "react-native";
 import notifee, { AndroidImportance } from "@notifee/react-native";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 
 const App: React.FC = () => {
   const [permissionsRequested, setPermissionsRequested] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const timeCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const [date, setDate] = useState<Date>(new Date(1598051730000));
 
   useEffect(() => {
     // Request permissions when the app starts
@@ -18,9 +22,8 @@ const App: React.FC = () => {
     requestPermissions();
   }, [permissionsRequested]);
 
-  useEffect(() => {
-    // Function to be triggered at a specific time
-    const triggerFunction = () => {
+  const setNotification = () => {
+    function triggerFunction() {
       // Remove the isNotificationRunning check
       if (timeCheckRef.current) {
         clearInterval(timeCheckRef.current);
@@ -32,37 +35,25 @@ const App: React.FC = () => {
 
       // Start a new interval
       intervalRef.current = setInterval(() => {
-        console.log("Run line 36");
         // Directly call the async function to schedule notification
         scheduleRepeatingNotification();
       }, 3000);
-    };
+    }
 
     // Set up an interval to check the time every second
     timeCheckRef.current = setInterval(() => {
       const now = new Date();
       // Check if current time matches your desired time (12:17 in this example)
-      if (now.getHours() === 21 && now.getMinutes() === 49) {
+      if (
+        now.getHours() === date.getHours() &&
+        now.getMinutes() === date.getMinutes()
+      ) {
         triggerFunction();
       }
     }, 1000);
-    // Cleanup interval on component unmount
-    return () => {
-      if (timeCheckRef.current) {
-        clearInterval(timeCheckRef.current);
-      }
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
-
-  const testFunc = () => {
-    console.log("run testFunc");
   };
 
   const scheduleRepeatingNotification = async () => {
-    console.log("notification !!!");
     try {
       // Create a channel for Android
       if (Platform.OS === "android") {
@@ -113,13 +104,29 @@ const App: React.FC = () => {
     await notifee.cancelAllNotifications();
   };
 
+  const onChangeDate = (
+    event: DateTimePickerEvent,
+    selectedDate: Date | undefined
+  ) => {
+    const currentDate = selectedDate;
+    if (currentDate) setDate(currentDate);
+  };
+
+  console.log(date.getHours(), date.getMinutes());
+
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>Immediate and Repeating Notification Example</Text>
-      <Button
-        title="Start Notifications"
-        onPress={scheduleRepeatingNotification}
+      {/* <Text>Immediate and Repeating Notification Example</Text> */}
+      <DateTimePicker
+        testID="dateTimePicker"
+        value={date}
+        mode={"time"}
+        display="spinner"
+        is24Hour={true}
+        // minuteInterval={5}
+        onChange={onChangeDate}
       />
+      <Button title="Sleep" onPress={setNotification} />
       <Button
         title="Cancel Notification"
         onPress={cancelNotification}
