@@ -1,16 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { View, Text, Button, Platform } from "react-native";
-import notifee, {
-  AndroidImportance,
-  IntervalTrigger,
-  TimestampTrigger,
-  TimeUnit,
-  TriggerType,
-} from "@notifee/react-native";
+import notifee, { AndroidImportance } from "@notifee/react-native";
 
 const App: React.FC = () => {
   const [permissionsRequested, setPermissionsRequested] = useState(false);
-  const [notificationId, setNotificationId] = useState<string | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeCheckRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Request permissions when the app starts
@@ -23,50 +18,60 @@ const App: React.FC = () => {
     requestPermissions();
   }, [permissionsRequested]);
 
-  const scheduleRepeatingNotification = async () => {
-    // Create a channel for Android
-    if (Platform.OS === "android") {
-      await notifee.createChannel({
-        id: "default",
-        name: "Default Channel",
-        importance: AndroidImportance.HIGH,
-        sound: "default",
-      });
-    }
+  useEffect(() => {
+    // Function to be triggered at a specific time
+    const triggerFunction = () => {
+      console.log("run this");
+      // Remove the isNotificationRunning check
+      // Clear any existing interval first
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
 
-    // Trigger an immediate notification
-    await notifee.displayNotification({
-      title: "Immediate Notification",
-      body: "This notification was triggered immediately.",
-      android: {
-        channelId: "default",
-        sound: "default",
-      },
-      ios: {
-        sound: "default",
-      },
-    });
-
-    const date = new Date();
-    date.setHours(23);
-    date.setMinutes(4);
-
-    const trigger: TimestampTrigger = {
-      type: TriggerType.TIMESTAMP,
-      timestamp: date.getTime(),
+      // Start a new interval
+      intervalRef.current = setInterval(() => {
+        // Directly call the async function to schedule notification
+        scheduleRepeatingNotification();
+      }, 3000);
     };
 
-    // Schedule a repeating notification
-    // const trigger: IntervalTrigger = {
-    //   type: TriggerType.INTERVAL,
-    //   interval: 1, // Repeats every 1 second
-    //   timeUnit: TimeUnit.SECONDS,
-    // };
+    // Set up an interval to check the time every second
+    timeCheckRef.current = setInterval(() => {
+      const now = new Date();
 
-    const id = await notifee.createTriggerNotification(
-      {
-        title: "Repeating Notification",
-        body: "This notification repeats every second.",
+      // Check if current time matches your desired time (12:17 in this example)
+      if (now.getHours() === 12 && now.getMinutes() === 36) {
+        triggerFunction();
+      }
+    }, 1000);
+
+    // Cleanup interval on component unmount
+    return () => {
+      if (timeCheckRef.current) {
+        clearInterval(timeCheckRef.current);
+      }
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []); // Remove dependency on isNotificationRunning
+
+  const scheduleRepeatingNotification = async () => {
+    try {
+      // Create a channel for Android
+      if (Platform.OS === "android") {
+        await notifee.createChannel({
+          id: "default",
+          name: "Default Channel",
+          importance: AndroidImportance.HIGH,
+          sound: "default",
+        });
+      }
+
+      // Trigger an immediate notification
+      await notifee.displayNotification({
+        title: "Immediate Notification",
+        body: `Notification at ${new Date().toLocaleTimeString()} 🐈‍⬛`,
         android: {
           channelId: "default",
           sound: "default",
@@ -74,40 +79,40 @@ const App: React.FC = () => {
         ios: {
           sound: "default",
         },
-      },
-      trigger
-    );
+      });
 
-    setNotificationId(id); // Store notification ID for canceling
-    console.log(`Repeating notification scheduled with ID: ${id}`);
+      console.log("Notification scheduled at", new Date().toLocaleTimeString());
+    } catch (error) {
+      console.error("Failed to schedule notification", error);
+    }
   };
 
-  let interVal = setInterval(() => {
-    scheduleRepeatingNotification();
-  }, 5000);
-
-  // setInterval(() => {
-  //   scheduleRepeatingNotification();
-  // }, 5000);
-
   const cancelNotification = async () => {
-    if (notificationId) {
-      await notifee.cancelNotification(notificationId);
-      setNotificationId(null);
-      // clearInterval(interVal);
-      console.log("Notification canceled");
-    } else {
-      console.log("No notification to cancel");
+    console.log("Clearing notification");
+
+    // Stop the time check interval
+    if (timeCheckRef.current) {
+      clearInterval(timeCheckRef.current);
+      timeCheckRef.current = null;
     }
+
+    // Stop the notification interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    // Optional: Cancel all displayed notifications
+    await notifee.cancelAllNotifications();
   };
 
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
       <Text>Immediate and Repeating Notification Example</Text>
-      {/* <Button
+      <Button
         title="Start Notifications"
         onPress={scheduleRepeatingNotification}
-      /> */}
+      />
       <Button
         title="Cancel Notification"
         onPress={cancelNotification}
