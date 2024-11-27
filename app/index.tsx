@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, Children } from "react";
 import { View, Text, Button, Platform, FlatList } from "react-native";
 import notifee, { AndroidImportance } from "@notifee/react-native";
 import DateTimePicker, {
@@ -7,7 +7,6 @@ import DateTimePicker, {
 
 const App: React.FC = () => {
   const [permissionsRequested, setPermissionsRequested] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const timeCheckRef = useRef<NodeJS.Timeout | null>(null);
   const [alarms, setAlarms] = useState<Date[]>([]);
   const [newAlarmTime, setNewAlarmTime] = useState<Date>(new Date());
@@ -20,30 +19,47 @@ const App: React.FC = () => {
       }
     };
     requestPermissions();
+  }, [permissionsRequested]);
 
-    // Set up time check for all alarms
-    timeCheckRef.current = setInterval(checkAlarmTimes, 1000);
+  useEffect(() => {
+    console.log("runnn");
+    // Clear previous interval
+    if (timeCheckRef.current) {
+      clearTimeout(timeCheckRef.current);
+    }
 
+    // Only set up checking if alarms exist
+    if (alarms.length > 0) {
+      const checkNextAlarm = () => {
+        console.log("run check");
+        const now = new Date();
+        alarms.forEach((alarmTime) => {
+          if (
+            now.getHours() === alarmTime.getHours() &&
+            now.getMinutes() === alarmTime.getMinutes()
+          ) {
+            scheduleRepeatingNotification(alarmTime);
+          }
+        });
+
+        // Schedule next check
+        timeCheckRef.current = setTimeout(checkNextAlarm, 1000);
+      };
+
+      // Initial check
+      checkNextAlarm();
+    }
+
+    // Cleanup function
     return () => {
       if (timeCheckRef.current) {
-        clearInterval(timeCheckRef.current);
+        clearTimeout(timeCheckRef.current);
       }
     };
-  }, [permissionsRequested, alarms]);
-
-  const checkAlarmTimes = () => {
-    const now = new Date();
-    alarms.forEach((alarmTime) => {
-      if (
-        now.getHours() === alarmTime.getHours() &&
-        now.getMinutes() === alarmTime.getMinutes()
-      ) {
-        scheduleRepeatingNotification(alarmTime);
-      }
-    });
-  };
+  }, [alarms]);
 
   const scheduleRepeatingNotification = async (alarmTime: Date) => {
+    console.log("notifi");
     try {
       if (Platform.OS === "android") {
         await notifee.createChannel({
@@ -83,11 +99,8 @@ const App: React.FC = () => {
   };
 
   const clearSpecificAlarm = async (index: number) => {
-    // Remove the specific alarm
     const updatedAlarms = alarms.filter((_, i) => i !== index);
     setAlarms(updatedAlarms);
-
-    // Cancel notification for this specific time
     await notifee.cancelAllNotifications();
   };
 
