@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, Button, Platform } from "react-native";
+import { View, Text, Button, Platform, FlatList } from "react-native";
 import notifee, { AndroidImportance } from "@notifee/react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -9,10 +9,10 @@ const App: React.FC = () => {
   const [permissionsRequested, setPermissionsRequested] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const timeCheckRef = useRef<NodeJS.Timeout | null>(null);
-  const [date, setDate] = useState<Date>(new Date(1598051730000));
+  const [alarms, setAlarms] = useState<Date[]>([]);
+  const [newAlarmTime, setNewAlarmTime] = useState<Date>(new Date());
 
   useEffect(() => {
-    // Request permissions when the app starts
     const requestPermissions = async () => {
       if (!permissionsRequested) {
         await notifee.requestPermission();
@@ -20,42 +20,31 @@ const App: React.FC = () => {
       }
     };
     requestPermissions();
-  }, [permissionsRequested]);
 
-  const setNotification = () => {
-    function triggerFunction() {
-      // Remove the isNotificationRunning check
+    // Set up time check for all alarms
+    timeCheckRef.current = setInterval(checkAlarmTimes, 1000);
+
+    return () => {
       if (timeCheckRef.current) {
         clearInterval(timeCheckRef.current);
       }
+    };
+  }, [permissionsRequested, alarms]);
 
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-
-      // Start a new interval
-      intervalRef.current = setInterval(() => {
-        // Directly call the async function to schedule notification
-        scheduleRepeatingNotification();
-      }, 3000);
-    }
-
-    // Set up an interval to check the time every second
-    timeCheckRef.current = setInterval(() => {
-      const now = new Date();
-      // Check if current time matches your desired time (12:17 in this example)
+  const checkAlarmTimes = () => {
+    const now = new Date();
+    alarms.forEach((alarmTime) => {
       if (
-        now.getHours() === date.getHours() &&
-        now.getMinutes() === date.getMinutes()
+        now.getHours() === alarmTime.getHours() &&
+        now.getMinutes() === alarmTime.getMinutes()
       ) {
-        triggerFunction();
+        scheduleRepeatingNotification(alarmTime);
       }
-    }, 1000);
+    });
   };
 
-  const scheduleRepeatingNotification = async () => {
+  const scheduleRepeatingNotification = async (alarmTime: Date) => {
     try {
-      // Create a channel for Android
       if (Platform.OS === "android") {
         await notifee.createChannel({
           id: "default",
@@ -65,10 +54,9 @@ const App: React.FC = () => {
         });
       }
 
-      // Trigger an immediate notification
       await notifee.displayNotification({
-        title: "Immediate Notification",
-        body: `Notification at ${new Date().toLocaleTimeString()} 🐈‍⬛`,
+        title: "Alarm Notification",
+        body: `Alarm triggered at ${alarmTime.toLocaleTimeString()} 🔔`,
         android: {
           channelId: "default",
           sound: "default",
@@ -77,30 +65,29 @@ const App: React.FC = () => {
           sound: "default",
         },
       });
-
-      console.log("Notification scheduled at", new Date().toLocaleTimeString());
     } catch (error) {
       console.error("Failed to schedule notification", error);
     }
   };
 
-  const cancelNotification = async () => {
-    console.log("Clearing notification");
+  const addAlarm = () => {
+    const isDuplicate = alarms.some(
+      (alarm) =>
+        alarm.getHours() === newAlarmTime.getHours() &&
+        alarm.getMinutes() === newAlarmTime.getMinutes()
+    );
 
-    // Stop the time check interval
-    if (timeCheckRef.current) {
-      clearInterval(timeCheckRef.current);
-      timeCheckRef.current = null;
+    if (!isDuplicate) {
+      setAlarms([...alarms, new Date(newAlarmTime)]);
     }
+  };
 
-    // Stop the notification interval
-    if (intervalRef.current) {
-      console.log("clear interval", intervalRef.current);
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+  const clearSpecificAlarm = async (index: number) => {
+    // Remove the specific alarm
+    const updatedAlarms = alarms.filter((_, i) => i !== index);
+    setAlarms(updatedAlarms);
 
-    // Optional: Cancel all displayed notifications
+    // Cancel notification for this specific time
     await notifee.cancelAllNotifications();
   };
 
@@ -108,29 +95,41 @@ const App: React.FC = () => {
     event: DateTimePickerEvent,
     selectedDate: Date | undefined
   ) => {
-    const currentDate = selectedDate;
-    if (currentDate) setDate(currentDate);
+    const currentDate = selectedDate || newAlarmTime;
+    setNewAlarmTime(currentDate);
   };
 
-  console.log(date.getHours(), date.getMinutes());
-
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      {/* <Text>Immediate and Repeating Notification Example</Text> */}
+    <View style={{ flex: 1, padding: 20, justifyContent: "center" }}>
       <DateTimePicker
         testID="dateTimePicker"
-        value={date}
-        mode={"time"}
+        value={newAlarmTime}
+        mode="time"
         display="spinner"
         is24Hour={true}
-        // minuteInterval={5}
         onChange={onChangeDate}
       />
-      <Button title="Sleep" onPress={setNotification} />
-      <Button
-        title="Cancel Notification"
-        onPress={cancelNotification}
-        color="red"
+      <Button title="Add Alarm" onPress={addAlarm} />
+      <FlatList
+        data={alarms}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={({ item, index }) => (
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginVertical: 10,
+            }}
+          >
+            <Text>{item.toLocaleTimeString()}</Text>
+            <Button
+              title="Clear"
+              color="red"
+              onPress={() => clearSpecificAlarm(index)}
+            />
+          </View>
+        )}
       />
     </View>
   );
