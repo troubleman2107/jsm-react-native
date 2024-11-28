@@ -6,16 +6,15 @@ import DateTimePicker, {
 } from "@react-native-community/datetimepicker";
 import CustomButton from "@/components/CustomButton";
 import { router } from "expo-router";
+import Home, { WakeTimeProps } from "./(tabs)/home";
 
 const App: React.FC = () => {
   const [permissionsRequested, setPermissionsRequested] = useState(false);
   const timeCheckRef = useRef<NodeJS.Timeout | null>(null);
   const [alarms, setAlarms] = useState<Date[]>([]);
   const [newAlarmTime, setNewAlarmTime] = useState<Date>(new Date());
-  console.log("🚀 ~ newAlarmTime:", newAlarmTime);
-  const [cycleSleep, setCycleSleep] = useState<
-    { time: string; cycles: number; hours: string; colorClass: string }[]
-  >([]);
+  const [sleepTime, setSleepTime] = useState<Date>();
+  const [cycleTime, setCycleTime] = useState<WakeTimeProps[]>([]);
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -49,8 +48,6 @@ const App: React.FC = () => {
         // Schedule next check
         timeCheckRef.current = setTimeout(checkNextAlarm, 1000);
       };
-
-      calculateSleepCycles(alarms[0]);
       // Initial check
       checkNextAlarm();
     }
@@ -62,6 +59,10 @@ const App: React.FC = () => {
       }
     };
   }, [alarms]);
+
+  useEffect(() => {
+    if (sleepTime) calculateSleepCycles(sleepTime);
+  }, [sleepTime]);
 
   const scheduleRepeatingNotification = async (alarmTime: Date) => {
     console.log("notifi");
@@ -152,31 +153,66 @@ const App: React.FC = () => {
       });
 
       sleepCycles.push({
+        timeRaw: spreadTime,
         time: formattedTime,
         cycles: i + 1,
         hours: ((i + 1) * 1.5).toFixed(1),
         colorClass: colorClasses[i],
+        alarm: false,
       });
     }
 
-    setCycleSleep(cycleSleep);
+    setCycleTime(sleepCycles);
 
     return sleepCycles;
   }
 
-  console.log(cycleSleep);
+  const handleAlarm = (time: Date | undefined, id: number) => {
+    if (time) {
+      const activeAlarm = cycleTime.map((item, index) => {
+        if (index === id && !item.alarm) {
+          item.alarm = true;
+        } else if (index === id && item.alarm) {
+          item.alarm = false;
+        }
+        return item;
+      });
+      setCycleTime(activeAlarm);
+      // const alarmTime = new Date(time);
+      // const isDuplicate = alarms.some(
+      //   (alarm) =>
+      //     alarm.getHours() === alarmTime.getHours() &&
+      //     alarm.getMinutes() === alarmTime.getMinutes()
+      // );
+      // if (!isDuplicate) {
+      //   setAlarms([...alarms, new Date(alarmTime)]);
+      // }
+    }
+  };
 
   return (
-    <View className="flex flex-1 items-center justify-center p-8">
+    <View className="flex flex-1 items-center justify-center p-8 bg-[#0f0817] h-full">
       <DateTimePicker
         testID="dateTimePicker"
         value={newAlarmTime}
         mode="time"
         display="spinner"
         onChange={onChangeDate}
+        textColor="#ffffff"
       />
-      <Button title="Add Alarm" onPress={addAlarm} />
-      <FlatList
+      <CustomButton
+        handlePress={() => {
+          setSleepTime(newAlarmTime);
+        }}
+        title="Sleep"
+        containerStyles="w-full"
+      />
+      {/* <CustomButton
+        handlePress={addAlarm}
+        title="Sleep"
+        containerStyles="w-full"
+      /> */}
+      {/* <FlatList
         data={alarms}
         keyExtractor={(item, index) => index.toString()}
         renderItem={({ item, index }) => (
@@ -196,14 +232,10 @@ const App: React.FC = () => {
             />
           </View>
         )}
-      />
-      <CustomButton
-        handlePress={() => {
-          router.push("/home");
-        }}
-        title="Go to alarm"
-        containerStyles="w-full mt-7"
-      />
+      /> */}
+      {cycleTime.length > 0 && (
+        <Home cycleTime={cycleTime} handleAlarm={handleAlarm} />
+      )}
     </View>
   );
 };
