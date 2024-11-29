@@ -25,9 +25,13 @@ const WakeTimeCard = ({
         alarm ? "bg-[#211b31]" : "bg-[#1a1625]"
       } justify-center items-center`}
     >
-      <Text className={`text-xl font-bold ${colorClass}`}>{time}</Text>
-      <Text className={`text-sm ${colorClass}`}>{cycles} cycles</Text>
-      <Text className="text-gray-400 text-xs mb-2">{hours} hr</Text>
+      <Text className={`text-xl font-psemibold ${colorClass}`}>{time}</Text>
+      <Text className={`text-sm font-pregular ${colorClass}`}>
+        {cycles} cycles
+      </Text>
+      <Text className="text-gray-400 font-pregular text-xs mb-2">
+        {hours} hr
+      </Text>
       {alarm && <Text>🔔</Text>}
     </View>
   );
@@ -66,6 +70,7 @@ export default function Home({
         <View className="flex-row flex-wrap justify-between gap-y-4">
           {cycleTime.map((wakeTime, index) => (
             <TouchableOpacity
+              key={index}
               onPress={() => handleAlarm(wakeTime.timeRaw, index)}
             >
               <WakeTimeCard key={index} {...wakeTime} />

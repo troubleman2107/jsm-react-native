@@ -11,7 +11,7 @@ import Home, { WakeTimeProps } from "./(tabs)/home";
 const App: React.FC = () => {
   const [permissionsRequested, setPermissionsRequested] = useState(false);
   const timeCheckRef = useRef<NodeJS.Timeout | null>(null);
-  const [alarms, setAlarms] = useState<Date[]>([]);
+  const [alarms, setAlarms] = useState<(Date | undefined)[]>([]);
   const [newAlarmTime, setNewAlarmTime] = useState<Date>(new Date());
   const [sleepTime, setSleepTime] = useState<Date>();
   const [cycleTime, setCycleTime] = useState<WakeTimeProps[]>([]);
@@ -38,8 +38,8 @@ const App: React.FC = () => {
         const now = new Date();
         alarms.forEach((alarmTime) => {
           if (
-            now.getHours() === alarmTime.getHours() &&
-            now.getMinutes() === alarmTime.getMinutes()
+            now.getHours() === alarmTime?.getHours() &&
+            now.getMinutes() === alarmTime?.getMinutes()
           ) {
             scheduleRepeatingNotification(alarmTime);
           }
@@ -63,6 +63,18 @@ const App: React.FC = () => {
   useEffect(() => {
     if (sleepTime) calculateSleepCycles(sleepTime);
   }, [sleepTime]);
+
+  useEffect(() => {
+    if (cycleTime) {
+      const activeAlarm = cycleTime
+        .filter((item) => item.alarm)
+        .map((item) => {
+          return item.timeRaw;
+        });
+      console.log("🚀 ~ useEffect ~ activeAlarm:", activeAlarm);
+      if (activeAlarm.length > 0) setAlarms(activeAlarm);
+    }
+  }, [cycleTime]);
 
   const scheduleRepeatingNotification = async (alarmTime: Date) => {
     console.log("notifi");
@@ -92,24 +104,13 @@ const App: React.FC = () => {
     }
   };
 
-  const addAlarm = () => {
-    const isDuplicate = alarms.some(
-      (alarm) =>
-        alarm.getHours() === newAlarmTime.getHours() &&
-        alarm.getMinutes() === newAlarmTime.getMinutes()
-    );
-
-    if (!isDuplicate) {
-      setAlarms([...alarms, new Date(newAlarmTime)]);
-    }
-  };
-
-  const clearSpecificAlarm = async (index: number) => {
-    const updatedAlarms = alarms.filter((_, i) => i !== index);
-    setAlarms(updatedAlarms);
+  const clearSpecificAlarm = async (index?: number) => {
     //Clear alarm, and cancel all notification
+    setAlarms([]);
     await notifee.cancelAllNotifications();
   };
+
+  // notifee.cancelAllNotifications();
 
   const onChangeDate = (
     event: DateTimePickerEvent,
@@ -135,26 +136,20 @@ const App: React.FC = () => {
 
     // Generate sleep cycles
     const sleepCycles = [];
+    const cycleDuration = 90; // minutes per cycle
 
     for (let i = 0; i < 6; i++) {
-      // Calculate time for each cycle (90 minutes apart)
-      // const cycleTime = new Date(startTime.getTime() + i * 90 * 60 * 1000);
-      const spreadTime = startTime;
-
-      console.log("spreadTime", spreadTime.getHours(), spreadTime.getMinutes());
-      spreadTime.setMinutes(spreadTime.getMinutes() + 90);
-      console.log("output", spreadTime.getHours(), spreadTime.getMinutes());
-
-      // Format time in 12-hour format
-      const formattedTime = spreadTime.toLocaleString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
+      const cycleTime = new Date(
+        startTime.getTime() + (i + 1) * cycleDuration * 1.5 * 1000
+      );
 
       sleepCycles.push({
-        timeRaw: spreadTime,
-        time: formattedTime,
+        timeRaw: cycleTime,
+        time: cycleTime.toLocaleString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        }),
         cycles: i + 1,
         hours: ((i + 1) * 1.5).toFixed(1),
         colorClass: colorClasses[i],
@@ -177,21 +172,13 @@ const App: React.FC = () => {
         }
         return item;
       });
+
       setCycleTime(activeAlarm);
-      // const alarmTime = new Date(time);
-      // const isDuplicate = alarms.some(
-      //   (alarm) =>
-      //     alarm.getHours() === alarmTime.getHours() &&
-      //     alarm.getMinutes() === alarmTime.getMinutes()
-      // );
-      // if (!isDuplicate) {
-      //   setAlarms([...alarms, new Date(alarmTime)]);
-      // }
     }
   };
 
   return (
-    <View className="flex flex-1 items-center justify-center p-8 bg-[#0f0817] h-full">
+    <View className="flex flex-1 items-center justify-center p-8 bg-[#0f0817]">
       <DateTimePicker
         testID="dateTimePicker"
         value={newAlarmTime}
@@ -207,34 +194,15 @@ const App: React.FC = () => {
         title="Sleep"
         containerStyles="w-full"
       />
-      {/* <CustomButton
-        handlePress={addAlarm}
-        title="Sleep"
-        containerStyles="w-full"
-      /> */}
-      {/* <FlatList
-        data={alarms}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item, index }) => (
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginVertical: 10,
-            }}
-          >
-            <Text>{item.toLocaleTimeString()}</Text>
-            <Button
-              title="Clear"
-              color="red"
-              onPress={() => clearSpecificAlarm(index)}
-            />
-          </View>
-        )}
-      /> */}
       {cycleTime.length > 0 && (
-        <Home cycleTime={cycleTime} handleAlarm={handleAlarm} />
+        <>
+          <Home cycleTime={cycleTime} handleAlarm={handleAlarm} />
+          <CustomButton
+            handlePress={clearSpecificAlarm}
+            title="Clear"
+            containerStyles="w-full"
+          />
+        </>
       )}
     </View>
   );
