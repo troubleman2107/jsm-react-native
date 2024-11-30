@@ -1,5 +1,12 @@
 import React, { useEffect, useState, useRef, Children } from "react";
-import { View, Text, Button, Platform, FlatList } from "react-native";
+import {
+  View,
+  Text,
+  Button,
+  Platform,
+  FlatList,
+  AppRegistry,
+} from "react-native";
 import notifee, {
   AndroidImportance,
   EventType,
@@ -15,33 +22,13 @@ import DateTimePicker, {
 import CustomButton from "@/components/CustomButton";
 import { router } from "expo-router";
 import Home, { WakeTimeProps } from "./(tabs)/home";
+import * as TaskManager from "expo-task-manager";
+import * as BackgroundFetch from "expo-background-fetch";
+import BackgroundTimer from "react-native-background-timer";
 
-notifee.onBackgroundEvent(async ({ type, detail }) => {
-  const { notification, pressAction } = detail;
-
-  switch (type) {
-    case EventType.PRESS:
-      // Handle notification press when app is in background
-      console.log("User pressed notification", notification);
-
-      // Optional: Navigate or perform action when notification is pressed
-      // Note: Background navigation might require additional setup
-      break;
-
-    case EventType.DELIVERED:
-      console.log("Notification delivered in background", notification);
-      break;
-
-    case EventType.ACTION_PRESS:
-      if (pressAction?.id) {
-        console.log("User pressed action button", pressAction.id);
-        // Handle specific action button press
-      }
-      break;
-  }
-
-  return Promise.resolve();
-});
+// async function unregisterBackgroundFetchAsync() {
+//   return BackgroundFetch.unregisterTaskAsync(BACKGROUND_FETCH_TASK);
+// }
 
 const App: React.FC = () => {
   const [permissionsRequested, setPermissionsRequested] = useState(false);
@@ -51,6 +38,18 @@ const App: React.FC = () => {
   const [newAlarmTime, setNewAlarmTime] = useState<Date>(new Date());
   const [sleepTime, setSleepTime] = useState<Date>();
   const [cycleTime, setCycleTime] = useState<WakeTimeProps[]>([]);
+
+  // useEffect(() => {
+  //   // Start a background timer
+  //   BackgroundTimer.start();
+  //   const interval = setInterval(() => {
+  //     console.log("background");
+  //   }, 1000);
+
+  //   return () => {
+  //     clearInterval(interval);
+  //   };
+  // }, []);
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -72,12 +71,6 @@ const App: React.FC = () => {
 
       const now = new Date();
       alarms.forEach((alarmTime) => {
-        console.log(
-          "alarmTime",
-          `${alarmTime?.getHours()} : ${alarmTime?.getMinutes()} : ${alarmTime?.getSeconds()} | `,
-          "alarmNow",
-          `${now?.getHours()} : ${now?.getMinutes()} : ${now?.getSeconds()}`
-        );
         if (
           now.getHours() === alarmTime?.getHours() &&
           now.getMinutes() === alarmTime?.getMinutes()
@@ -85,7 +78,7 @@ const App: React.FC = () => {
           if (timeCheckRef.current) {
             clearInterval(timeCheckRef.current);
           }
-          console.log("alarmRef.current", alarmRef.current);
+          BackgroundTimer.start();
           alarmRef.current = setInterval(() => {
             scheduleRepeatingNotification(alarmTime);
           }, 1000);
@@ -122,6 +115,10 @@ const App: React.FC = () => {
   }, [cycleTime]);
 
   const scheduleRepeatingNotification = async (alarmTime: Date) => {
+    console.log(
+      "alarmNow",
+      `${new Date()?.getHours()} : ${new Date()?.getMinutes()} : ${new Date()?.getSeconds()}`
+    );
     try {
       if (Platform.OS === "android") {
         await notifee.createChannel({
@@ -171,7 +168,10 @@ const App: React.FC = () => {
   };
 
   const clearSpecificAlarm = async (index?: number) => {
+    // unregisterBackgroundFetchAsync();
     //Clear alarm, and cancel all notification
+    BackgroundTimer.stop();
+
     setAlarms([]);
     if (timeCheckRef.current) {
       clearInterval(timeCheckRef.current);
@@ -181,10 +181,6 @@ const App: React.FC = () => {
 
     await notifee.cancelAllNotifications();
   };
-
-  console.log("alarms", alarms);
-
-  // notifee.cancelAllNotifications();
 
   const onChangeDate = (
     event: DateTimePickerEvent,
