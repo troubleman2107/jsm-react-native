@@ -1,6 +1,14 @@
 import React, { useEffect, useState, useRef, Children } from "react";
 import { View, Text, Button, Platform, FlatList } from "react-native";
-import notifee, { AndroidImportance } from "@notifee/react-native";
+import notifee, {
+  AndroidImportance,
+  EventType,
+  IntervalTrigger,
+  RepeatFrequency,
+  TimestampTrigger,
+  TimeUnit,
+  TriggerType,
+} from "@notifee/react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
@@ -8,9 +16,37 @@ import CustomButton from "@/components/CustomButton";
 import { router } from "expo-router";
 import Home, { WakeTimeProps } from "./(tabs)/home";
 
+notifee.onBackgroundEvent(async ({ type, detail }) => {
+  const { notification, pressAction } = detail;
+
+  switch (type) {
+    case EventType.PRESS:
+      // Handle notification press when app is in background
+      console.log("User pressed notification", notification);
+
+      // Optional: Navigate or perform action when notification is pressed
+      // Note: Background navigation might require additional setup
+      break;
+
+    case EventType.DELIVERED:
+      console.log("Notification delivered in background", notification);
+      break;
+
+    case EventType.ACTION_PRESS:
+      if (pressAction?.id) {
+        console.log("User pressed action button", pressAction.id);
+        // Handle specific action button press
+      }
+      break;
+  }
+
+  return Promise.resolve();
+});
+
 const App: React.FC = () => {
   const [permissionsRequested, setPermissionsRequested] = useState(false);
   const timeCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const alarmRef = useRef<NodeJS.Timeout | null>(null);
   const [alarms, setAlarms] = useState<(Date | undefined)[]>([]);
   const [newAlarmTime, setNewAlarmTime] = useState<Date>(new Date());
   const [sleepTime, setSleepTime] = useState<Date>();
@@ -24,38 +60,48 @@ const App: React.FC = () => {
       }
     };
     requestPermissions();
-  }, [permissionsRequested]);
+
+    // Set up time check for all alarms
+  }, [permissionsRequested, alarms]);
 
   useEffect(() => {
-    // Clear previous interval
-    if (timeCheckRef.current) {
-      clearTimeout(timeCheckRef.current);
-    }
+    const checkAlarmTimes = () => {
+      if (alarmRef.current) {
+        clearInterval(alarmRef.current);
+      }
 
-    // Only set up checking if alarms exist
-    if (alarms.length > 0) {
-      const checkNextAlarm = () => {
-        const now = new Date();
-        alarms.forEach((alarmTime) => {
-          if (
-            now.getHours() === alarmTime?.getHours() &&
-            now.getMinutes() === alarmTime?.getMinutes()
-          ) {
-            scheduleRepeatingNotification(alarmTime);
+      const now = new Date();
+      alarms.forEach((alarmTime) => {
+        console.log(
+          "alarmTime",
+          `${alarmTime?.getHours()} : ${alarmTime?.getMinutes()} : ${alarmTime?.getSeconds()} | `,
+          "alarmNow",
+          `${now?.getHours()} : ${now?.getMinutes()} : ${now?.getSeconds()}`
+        );
+        if (
+          now.getHours() === alarmTime?.getHours() &&
+          now.getMinutes() === alarmTime?.getMinutes()
+        ) {
+          if (timeCheckRef.current) {
+            clearInterval(timeCheckRef.current);
           }
-        });
+          console.log("alarmRef.current", alarmRef.current);
+          alarmRef.current = setInterval(() => {
+            scheduleRepeatingNotification(alarmTime);
+          }, 1000);
+        }
+      });
+    };
 
-        // Schedule next check
-        timeCheckRef.current = setTimeout(checkNextAlarm, 1000);
-      };
-      // Initial check
-      checkNextAlarm();
-    }
+    timeCheckRef.current = setInterval(checkAlarmTimes, 1000);
 
-    // Cleanup function
     return () => {
       if (timeCheckRef.current) {
-        clearTimeout(timeCheckRef.current);
+        clearInterval(timeCheckRef.current);
+      }
+
+      if (alarmRef.current) {
+        clearInterval(alarmRef.current);
       }
     };
   }, [alarms]);
@@ -71,13 +117,11 @@ const App: React.FC = () => {
         .map((item) => {
           return item.timeRaw;
         });
-      console.log("🚀 ~ useEffect ~ activeAlarm:", activeAlarm);
       if (activeAlarm.length > 0) setAlarms(activeAlarm);
     }
   }, [cycleTime]);
 
   const scheduleRepeatingNotification = async (alarmTime: Date) => {
-    console.log("notifi");
     try {
       if (Platform.OS === "android") {
         await notifee.createChannel({
@@ -90,7 +134,7 @@ const App: React.FC = () => {
 
       await notifee.displayNotification({
         title: "Alarm Notification",
-        body: `Alarm triggered at ${alarmTime.toLocaleTimeString()} 🔔`,
+        body: `Alarm triggered at ${alarmTime?.toLocaleTimeString()} 🔔`,
         android: {
           channelId: "default",
           sound: "default",
@@ -99,6 +143,28 @@ const App: React.FC = () => {
           sound: "default",
         },
       });
+
+      // const trigger: IntervalTrigger = {
+      //   type: TriggerType.INTERVAL,
+      //   timeUnit: TimeUnit.MINUTES,
+      //   interval: 15,
+      // };
+
+      // // Schedule the notification
+      // await notifee.createTriggerNotification(
+      //   {
+      //     title: "Alarm Notification",
+      //     body: `Alarm set for ${alarmTime.toLocaleTimeString()} 🔔`,
+      //     android: {
+      //       channelId: "default",
+      //       sound: "default",
+      //     },
+      //     ios: {
+      //       sound: "default",
+      //     },
+      //   },
+      //   trigger
+      // );
     } catch (error) {
       console.error("Failed to schedule notification", error);
     }
@@ -107,8 +173,16 @@ const App: React.FC = () => {
   const clearSpecificAlarm = async (index?: number) => {
     //Clear alarm, and cancel all notification
     setAlarms([]);
+    if (timeCheckRef.current) {
+      clearInterval(timeCheckRef.current);
+    }
+
+    if (alarmRef.current) clearInterval(alarmRef.current);
+
     await notifee.cancelAllNotifications();
   };
+
+  console.log("alarms", alarms);
 
   // notifee.cancelAllNotifications();
 
@@ -140,7 +214,7 @@ const App: React.FC = () => {
 
     for (let i = 0; i < 6; i++) {
       const cycleTime = new Date(
-        startTime.getTime() + (i + 1) * cycleDuration * 1.5 * 1000
+        startTime.getTime() + (i + 1) * cycleDuration * 1.1 * 1000
       );
 
       sleepCycles.push({
@@ -167,7 +241,7 @@ const App: React.FC = () => {
       const activeAlarm = cycleTime.map((item, index) => {
         if (index === id && !item.alarm) {
           item.alarm = true;
-        } else if (index === id && item.alarm) {
+        } else {
           item.alarm = false;
         }
         return item;
