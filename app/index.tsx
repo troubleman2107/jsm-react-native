@@ -25,6 +25,8 @@ import Home, { WakeTimeProps } from "./(tabs)/home";
 import * as TaskManager from "expo-task-manager";
 import * as BackgroundFetch from "expo-background-fetch";
 import BackgroundTimer from "react-native-background-timer";
+import Sound from "react-native-sound";
+import { sounds } from "../constants";
 
 // async function unregisterBackgroundFetchAsync() {
 //   return BackgroundFetch.unregisterTaskAsync(BACKGROUND_FETCH_TASK);
@@ -38,6 +40,40 @@ const App: React.FC = () => {
   const [newAlarmTime, setNewAlarmTime] = useState<Date>(new Date());
   const [sleepTime, setSleepTime] = useState<Date>();
   const [cycleTime, setCycleTime] = useState<WakeTimeProps[]>([]);
+  const [isAlarm, setIsAlarm] = useState<boolean>(false);
+  const soundRef = useRef<Sound | null>(null);
+
+  const playSound = () => {
+    // Load the sound file
+    if (soundRef && !soundRef.current?.isLoaded()) {
+      soundRef.current = new Sound("alarm.mp3", Sound.MAIN_BUNDLE, (error) => {
+        if (error) {
+          console.error("Failed to load sound", error);
+          return;
+        }
+        // Play the sound
+        if (soundRef.current) {
+          soundRef.current.play((success) => {
+            if (!success) {
+              console.error(
+                "Sound playback failed due to audio decoding errors."
+              );
+            }
+          });
+        }
+      });
+    }
+  };
+
+  const stopSound = () => {
+    if (soundRef.current) {
+      soundRef.current.stop(() => {
+        console.log("Sound has been stopped.");
+      });
+    } else {
+      console.warn("No sound instance to stop.");
+    }
+  };
 
   // useEffect(() => {
   //   // Start a background timer
@@ -64,7 +100,13 @@ const App: React.FC = () => {
   }, [permissionsRequested, alarms]);
 
   useEffect(() => {
+    BackgroundTimer.start();
     const checkAlarmTimes = () => {
+      console.log(
+        "alarmNow",
+        `${new Date()?.getHours()} : ${new Date()?.getMinutes()} : ${new Date()?.getSeconds()}`
+      );
+
       if (alarmRef.current) {
         clearInterval(alarmRef.current);
       }
@@ -75,18 +117,22 @@ const App: React.FC = () => {
           now.getHours() === alarmTime?.getHours() &&
           now.getMinutes() === alarmTime?.getMinutes()
         ) {
+          setIsAlarm(true);
           if (timeCheckRef.current) {
             clearInterval(timeCheckRef.current);
           }
-          BackgroundTimer.start();
+
           alarmRef.current = setInterval(() => {
+            playSound();
             scheduleRepeatingNotification(alarmTime);
           }, 1000);
         }
       });
     };
 
-    timeCheckRef.current = setInterval(checkAlarmTimes, 1000);
+    if (alarms.length > 0) {
+      timeCheckRef.current = setInterval(checkAlarmTimes, 1000);
+    }
 
     return () => {
       if (timeCheckRef.current) {
@@ -95,6 +141,10 @@ const App: React.FC = () => {
 
       if (alarmRef.current) {
         clearInterval(alarmRef.current);
+      }
+
+      if (soundRef.current) {
+        soundRef.current.release();
       }
     };
   }, [alarms]);
@@ -115,10 +165,6 @@ const App: React.FC = () => {
   }, [cycleTime]);
 
   const scheduleRepeatingNotification = async (alarmTime: Date) => {
-    console.log(
-      "alarmNow",
-      `${new Date()?.getHours()} : ${new Date()?.getMinutes()} : ${new Date()?.getSeconds()}`
-    );
     try {
       if (Platform.OS === "android") {
         await notifee.createChannel({
@@ -170,6 +216,8 @@ const App: React.FC = () => {
   const clearSpecificAlarm = async (index?: number) => {
     // unregisterBackgroundFetchAsync();
     //Clear alarm, and cancel all notification
+    stopSound();
+    setIsAlarm(false);
     BackgroundTimer.stop();
 
     setAlarms([]);
@@ -267,11 +315,13 @@ const App: React.FC = () => {
       {cycleTime.length > 0 && (
         <>
           <Home cycleTime={cycleTime} handleAlarm={handleAlarm} />
-          <CustomButton
-            handlePress={clearSpecificAlarm}
-            title="Clear"
-            containerStyles="w-full"
-          />
+          {isAlarm && (
+            <CustomButton
+              handlePress={clearSpecificAlarm}
+              title="Clear"
+              containerStyles="w-full"
+            />
+          )}
         </>
       )}
     </View>
