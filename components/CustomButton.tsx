@@ -18,7 +18,7 @@ const CustomButton = ({
 }: CustomButtonProps) => {
   return (
     <TouchableOpacity
-      className={`bg-secondary rounded-xl min-h-[62px] flex flex-row justify-center items-center ${containerStyles} ${
+      className={`bg-secondary rounded-xl min-h-[32px] flex flex-row justify-center items-center ${containerStyles} ${
         isLoading ? "opacity-50" : ""
       }`}
       activeOpacity={0.7}

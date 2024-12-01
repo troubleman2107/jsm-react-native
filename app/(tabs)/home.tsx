@@ -9,7 +9,7 @@ export interface WakeTimeProps {
   hours: string;
   colorClass: string;
   alarm: boolean;
-  timeRaw?: Date;
+  timeRaw: Date;
 }
 
 const WakeTimeCard = ({
@@ -42,7 +42,7 @@ export default function Home({
   handleAlarm,
 }: {
   cycleTime: WakeTimeProps[];
-  handleAlarm: (time: Date | undefined, index: number) => void;
+  handleAlarm: (time: Date, index: number) => void;
 }) {
   // const wakeTimes: WakeTimeProps[] = [
   //   { colorClass: "text-[#ff6b6b]", cycles: 1, hours: "1.5", time: "12:30 AM" },
@@ -55,7 +55,7 @@ export default function Home({
 
   return (
     <ScrollView className="flex-1 bg-[#0f0817]">
-      <View className="flex-1 h-100 flex items-center justify-center">
+      <View className="flex-1 flex items-center justify-center">
         {/* Current Time Display */}
         <View className="items-center mb-8">
           {/* <Text className="mb-2">🌙</Text> */}
@@ -71,7 +71,7 @@ export default function Home({
           {cycleTime.map((wakeTime, index) => (
             <TouchableOpacity
               key={index}
-              onPress={() => handleAlarm(wakeTime.timeRaw, index)}
+              onPress={() => handleAlarm(wakeTime?.timeRaw, index)}
             >
               <WakeTimeCard key={index} {...wakeTime} />
             </TouchableOpacity>

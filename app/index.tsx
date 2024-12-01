@@ -1,52 +1,50 @@
 import React, { useEffect, useState, useRef, Children } from "react";
-import {
-  View,
-  Text,
-  Button,
-  Platform,
-  FlatList,
-  AppRegistry,
-} from "react-native";
-import notifee, {
-  AndroidImportance,
-  EventType,
-  IntervalTrigger,
-  RepeatFrequency,
-  TimestampTrigger,
-  TimeUnit,
-  TriggerType,
-} from "@notifee/react-native";
+import { View, Platform, FlatList, Text, Switch } from "react-native";
+import notifee, { AndroidImportance } from "@notifee/react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import CustomButton from "@/components/CustomButton";
 import { router } from "expo-router";
 import Home, { WakeTimeProps } from "./(tabs)/home";
-import * as TaskManager from "expo-task-manager";
-import * as BackgroundFetch from "expo-background-fetch";
 import BackgroundTimer from "react-native-background-timer";
 import Sound from "react-native-sound";
-import { sounds } from "../constants";
+import { Power } from "lucide-react-native";
+import { Icon } from "react-native-elements";
 
-// async function unregisterBackgroundFetchAsync() {
-//   return BackgroundFetch.unregisterTaskAsync(BACKGROUND_FETCH_TASK);
-// }
+type AlarmType = {
+  active: boolean;
+  time: Date;
+  isAlarm?: boolean;
+};
+
+type AlarmsType = AlarmType[];
 
 const App: React.FC = () => {
   const [permissionsRequested, setPermissionsRequested] = useState(false);
   const timeCheckRef = useRef<NodeJS.Timeout | null>(null);
   const alarmRef = useRef<NodeJS.Timeout | null>(null);
-  const [alarms, setAlarms] = useState<(Date | undefined)[]>([]);
+  const [alarms, setAlarms] = useState<AlarmsType>([]);
   const [newAlarmTime, setNewAlarmTime] = useState<Date>(new Date());
   const [sleepTime, setSleepTime] = useState<Date>();
   const [cycleTime, setCycleTime] = useState<WakeTimeProps[]>([]);
   const [isAlarm, setIsAlarm] = useState<boolean>(false);
+  const [idAlarm, setIdAlarm] = useState<number>();
+  console.log("🚀 ~ idAlarm:", idAlarm);
+
   const soundRef = useRef<Sound | null>(null);
 
+  console.log("alarms", alarms);
+
   const playSound = () => {
-    // Load the sound file
+    // Load the sound file]
+    // console.log(
+    //   "soundRef.current?.isLoaded()",
+    //   soundRef.current?.isLoaded(),
+    //   soundRef
+    // );
     if (soundRef && !soundRef.current?.isLoaded()) {
-      soundRef.current = new Sound("alarm.mp3", Sound.MAIN_BUNDLE, (error) => {
+      soundRef.current = new Sound("alarm2.mp3", Sound.MAIN_BUNDLE, (error) => {
         if (error) {
           console.error("Failed to load sound", error);
           return;
@@ -75,32 +73,19 @@ const App: React.FC = () => {
     }
   };
 
-  // useEffect(() => {
-  //   // Start a background timer
-  //   BackgroundTimer.start();
-  //   const interval = setInterval(() => {
-  //     console.log("background");
-  //   }, 1000);
-
-  //   return () => {
-  //     clearInterval(interval);
-  //   };
-  // }, []);
-
   useEffect(() => {
     const requestPermissions = async () => {
       if (!permissionsRequested) {
         await notifee.requestPermission();
         setPermissionsRequested(true);
       }
+      requestPermissions();
     };
-    requestPermissions();
 
     // Set up time check for all alarms
   }, [permissionsRequested, alarms]);
 
   useEffect(() => {
-    BackgroundTimer.start();
     const checkAlarmTimes = () => {
       console.log(
         "alarmNow",
@@ -112,26 +97,36 @@ const App: React.FC = () => {
       }
 
       const now = new Date();
-      alarms.forEach((alarmTime) => {
-        if (
-          now.getHours() === alarmTime?.getHours() &&
-          now.getMinutes() === alarmTime?.getMinutes()
-        ) {
-          setIsAlarm(true);
-          if (timeCheckRef.current) {
-            clearInterval(timeCheckRef.current);
-          }
+      alarms?.forEach((alarmTime, alarmIndex) => {
+        if (alarmTime.active) {
+          if (
+            now.getHours() === alarmTime?.time?.getHours() &&
+            now.getMinutes() === alarmTime?.time?.getMinutes()
+          ) {
+            setIdAlarm(alarmIndex);
+            // updateIsAlarm(alarms, alarmIndex);
+            setIsAlarm(true);
+            if (timeCheckRef.current) {
+              clearInterval(timeCheckRef.current);
+            }
 
-          alarmRef.current = setInterval(() => {
-            playSound();
-            scheduleRepeatingNotification(alarmTime);
-          }, 1000);
+            alarmRef.current = setInterval(() => {
+              playSound();
+              scheduleRepeatingNotification(alarmTime?.time);
+            }, 1000);
+          }
         }
       });
     };
 
-    if (alarms.length > 0) {
+    console.log("alarm2", alarms);
+
+    if (alarms.length > 0 && alarms.find((item) => item.active)) {
+      BackgroundTimer.start();
       timeCheckRef.current = setInterval(checkAlarmTimes, 1000);
+    } else if (alarms.find((item) => !item.active)) {
+      console.log("stop background !");
+      BackgroundTimer.stop();
     }
 
     return () => {
@@ -159,12 +154,45 @@ const App: React.FC = () => {
         .filter((item) => item.alarm)
         .map((item) => {
           return item.timeRaw;
-        });
+        })
+        .map((time) => ({
+          time: time,
+          active: true,
+          isAlarm: false,
+        }));
+
+      if (activeAlarm.length > 0) {
+        for (let i = 1; i <= 4; i++) {
+          const nextTime = new Date(
+            activeAlarm[0]?.time?.getTime() + i * 5 * 60 * 1000
+          ); // 5 minutes = 5 * 60 * 1000 milliseconds
+          activeAlarm.push({
+            time: nextTime,
+            active: false,
+            isAlarm: false,
+          });
+        }
+      }
+
+      console.log("🚀 ~ useEffect ~ activeAlarm:", activeAlarm);
+
       if (activeAlarm.length > 0) setAlarms(activeAlarm);
     }
   }, [cycleTime]);
 
-  const scheduleRepeatingNotification = async (alarmTime: Date) => {
+  const updateIsAlarm = (alarms: AlarmsType, indexAlarms: number) => {
+    const newUpdate = alarms.map((item, index) => {
+      if (index === indexAlarms) {
+        item.isAlarm = true;
+      }
+      return item;
+    });
+
+    setAlarms(newUpdate);
+  };
+
+  const scheduleRepeatingNotification = async (alarmTime: Date | undefined) => {
+    console.log("notifee");
     try {
       if (Platform.OS === "android") {
         await notifee.createChannel({
@@ -186,28 +214,6 @@ const App: React.FC = () => {
           sound: "default",
         },
       });
-
-      // const trigger: IntervalTrigger = {
-      //   type: TriggerType.INTERVAL,
-      //   timeUnit: TimeUnit.MINUTES,
-      //   interval: 15,
-      // };
-
-      // // Schedule the notification
-      // await notifee.createTriggerNotification(
-      //   {
-      //     title: "Alarm Notification",
-      //     body: `Alarm set for ${alarmTime.toLocaleTimeString()} 🔔`,
-      //     android: {
-      //       channelId: "default",
-      //       sound: "default",
-      //     },
-      //     ios: {
-      //       sound: "default",
-      //     },
-      //   },
-      //   trigger
-      // );
     } catch (error) {
       console.error("Failed to schedule notification", error);
     }
@@ -218,9 +224,10 @@ const App: React.FC = () => {
     //Clear alarm, and cancel all notification
     stopSound();
     setIsAlarm(false);
-    BackgroundTimer.stop();
+    const removeAlarms = alarms.filter((_, indexAlarm) => indexAlarm !== index);
+    console.log("🚀 ~ clearSpecificAlarm ~ removeAlarms:", removeAlarms);
+    setAlarms(removeAlarms);
 
-    setAlarms([]);
     if (timeCheckRef.current) {
       clearInterval(timeCheckRef.current);
     }
@@ -280,7 +287,7 @@ const App: React.FC = () => {
     return sleepCycles;
   }
 
-  const handleAlarm = (time: Date | undefined, id: number) => {
+  const handleAlarm = (time: Date, id: number) => {
     if (time) {
       const activeAlarm = cycleTime.map((item, index) => {
         if (index === id && !item.alarm) {
@@ -310,20 +317,61 @@ const App: React.FC = () => {
           setSleepTime(newAlarmTime);
         }}
         title="Sleep"
-        containerStyles="w-full"
+        containerStyles="w-full h-[60px]"
       />
       {cycleTime.length > 0 && (
         <>
           <Home cycleTime={cycleTime} handleAlarm={handleAlarm} />
-          {isAlarm && (
+          {/* {isAlarm && (
             <CustomButton
               handlePress={clearSpecificAlarm}
               title="Clear"
               containerStyles="w-full"
             />
-          )}
+          )} */}
         </>
       )}
+      <View>
+        <FlatList
+          className="flex-grow-0 h-[30vh]"
+          data={alarms}
+          renderItem={({ item, index }) => (
+            <View className="flex flex-row justify-between items-center w-full">
+              <Text className="text-white text-3xl mb-4">{`${item.time.toLocaleTimeString()}`}</Text>
+              <View className="flex flex-row justify-between items-center gap-3">
+                <Switch
+                  trackColor={{ false: "#767577", true: "#81b0ff" }}
+                  // thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
+                  ios_backgroundColor="#3e3e3e"
+                  onValueChange={() => {
+                    console.log("toggle");
+                    const newAlarm = alarms.map((itemNew, indexNew) => {
+                      if (index === indexNew) {
+                        itemNew.active = !item.active;
+                      }
+                      return itemNew;
+                    });
+                    setAlarms(newAlarm);
+                    // setAlarms((prevState) => {
+                    //   prevState.map((item) => {
+
+                    //   })
+                    // })
+                  }}
+                  value={item.active ? true : false}
+                />
+                {isAlarm && item.active && index === idAlarm && (
+                  <CustomButton
+                    handlePress={() => clearSpecificAlarm(index)}
+                    title="Stop"
+                    containerStyles="w-[75px] p-2"
+                  />
+                )}
+              </View>
+            </View>
+          )}
+        />
+      </View>
     </View>
   );
 };
