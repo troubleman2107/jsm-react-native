@@ -149,8 +149,6 @@ const App: React.FC = () => {
       });
     };
 
-    console.log("alarm2", alarms);
-
     if (alarms.length > 0 && alarms.find((item) => item.active)) {
       // BackgroundTimer.start();
       if (soundRef && !soundRef.current?.isLoaded()) {
@@ -174,6 +172,7 @@ const App: React.FC = () => {
                       "Sound playback failed due to audio decoding errors."
                     );
                   }
+                  console.log("play sound success");
                 });
                 soundRef.current.setNumberOfLoops(-1);
               }
@@ -287,7 +286,6 @@ const App: React.FC = () => {
     stopSound();
     setIsAlarm(false);
     const removeAlarms = alarms.filter((_, indexAlarm) => indexAlarm !== index);
-    console.log("🚀 ~ clearSpecificAlarm ~ removeAlarms:", removeAlarms);
     setAlarms(removeAlarms);
 
     if (timeCheckRef.current) {
@@ -327,7 +325,9 @@ const App: React.FC = () => {
 
     for (let i = 0; i < 6; i++) {
       const cycleTime = new Date(
-        startTime.getTime() + (i + 1) * cycleDuration * 1.1 * 1000
+        startTime.getTime() +
+          (i + 1) * cycleDuration * 60 * 1000 +
+          15 * 60 * 1000
       );
 
       sleepCycles.push({
@@ -384,13 +384,6 @@ const App: React.FC = () => {
       {cycleTime.length > 0 && (
         <>
           <Home cycleTime={cycleTime} handleAlarm={handleAlarm} />
-          {/* {isAlarm && (
-            <CustomButton
-              handlePress={clearSpecificAlarm}
-              title="Clear"
-              containerStyles="w-full"
-            />
-          )} */}
         </>
       )}
       <View>
@@ -399,15 +392,17 @@ const App: React.FC = () => {
           data={alarms}
           renderItem={({ item, index }) => (
             <View className="flex flex-row justify-between items-center w-full">
-              <Text className="text-white text-3xl mb-4">{`${item.time.toLocaleTimeString()}`}</Text>
+              <Text className="text-white text-3xl mb-4">{`${item.time.toLocaleTimeString(
+                "en-US",
+                { hour: "2-digit", minute: "2-digit", hour12: false }
+              )}`}</Text>
               <View className="flex flex-row justify-between items-center gap-3">
                 <Switch
-                  trackColor={{ false: "#767577", true: "#81b0ff" }}
+                  trackColor={{ false: "#767577", true: "#FF9C01" }}
                   // thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
-                  ios_backgroundColor="#3e3e3e"
+                  ios_backgroundColor="#0f0817"
                   onValueChange={() => {
                     BackgroundTimer.stopBackgroundTimer();
-                    console.log("toggle");
                     const newAlarm = alarms.map((itemNew, indexNew) => {
                       if (index === indexNew) {
                         itemNew.active = !item.active;
@@ -415,11 +410,6 @@ const App: React.FC = () => {
                       return itemNew;
                     });
                     setAlarms(newAlarm);
-                    // setAlarms((prevState) => {
-                    //   prevState.map((item) => {
-
-                    //   })
-                    // })
                   }}
                   value={item.active ? true : false}
                 />
