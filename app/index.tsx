@@ -20,6 +20,9 @@ type AlarmType = {
 
 type AlarmsType = AlarmType[];
 
+Sound.setCategory("Playback");
+Sound.setMode("Default");
+
 const App: React.FC = () => {
   const [permissionsRequested, setPermissionsRequested] = useState(false);
   const timeCheckRef = useRef<NodeJS.Timeout | null>(null);
@@ -36,13 +39,7 @@ const App: React.FC = () => {
 
   console.log("alarms", alarms);
 
-  const playSound = () => {
-    // Load the sound file]
-    // console.log(
-    //   "soundRef.current?.isLoaded()",
-    //   soundRef.current?.isLoaded(),
-    //   soundRef
-    // );
+  const prepareSound = () => {
     if (soundRef && !soundRef.current?.isLoaded()) {
       soundRef.current = new Sound("alarm2.mp3", Sound.MAIN_BUNDLE, (error) => {
         if (error) {
@@ -50,18 +47,51 @@ const App: React.FC = () => {
           return;
         }
         // Play the sound
+        // BackgroundTimer.runBackgroundTimer(() => {
         if (soundRef.current) {
           soundRef.current.play((success) => {
+            console.log("🚀 ~ soundRef.current.play ~ success:", success);
             if (!success) {
               console.error(
                 "Sound playback failed due to audio decoding errors."
               );
             }
           });
+          soundRef.current.setVolume(0);
+          soundRef.current.setNumberOfLoops(-1);
         }
+        // }, 1000);
       });
     }
   };
+
+  const playSound = () => {
+    if (soundRef.current) {
+      console.log("🚀 ~ playSound ~ soundRef.current:", soundRef.current);
+      soundRef.current.setVolume(1);
+      // soundRef.current.setVolume(1);
+      // soundRef.current = new Sound("alarm2.mp3", Sound.MAIN_BUNDLE, (error) => {
+      //   if (error) {
+      //     console.error("Failed to load sound", error);
+      //     return;
+      //   }
+      //   // Play the sound
+      //   if (soundRef.current) {
+      //     soundRef.current.play((success) => {
+      //       if (!success) {
+      //         console.error(
+      //           "Sound playback failed due to audio decoding errors."
+      //         );
+      //       }
+      //     });
+      //   }
+      // });
+    }
+  };
+
+  // useEffect(() => {
+  //   prepareSound();
+  // }, []);
 
   const stopSound = () => {
     if (soundRef.current) {
@@ -122,11 +152,42 @@ const App: React.FC = () => {
     console.log("alarm2", alarms);
 
     if (alarms.length > 0 && alarms.find((item) => item.active)) {
-      BackgroundTimer.start();
-      timeCheckRef.current = setInterval(checkAlarmTimes, 1000);
+      // BackgroundTimer.start();
+      if (soundRef && !soundRef.current?.isLoaded()) {
+        console.log("prepare success");
+        soundRef.current = new Sound(
+          "alarm2.mp3",
+          Sound.MAIN_BUNDLE,
+          (error) => {
+            if (error) {
+              console.error("Failed to load sound", error);
+              return;
+            }
+            // Play the sound
+            BackgroundTimer.runBackgroundTimer(() => {
+              checkAlarmTimes();
+              if (soundRef.current) {
+                soundRef.current.play((success) => {
+                  console.log("🚀 ~ soundRef.current.play ~ success:", success);
+                  if (!success) {
+                    console.error(
+                      "Sound playback failed due to audio decoding errors."
+                    );
+                  }
+                });
+                soundRef.current.setNumberOfLoops(-1);
+              }
+            }, 1000);
+            if (soundRef.current) {
+              soundRef.current.setVolume(0);
+            }
+          }
+        );
+      }
     } else if (alarms.find((item) => !item.active)) {
       console.log("stop background !");
-      BackgroundTimer.stop();
+      BackgroundTimer.stopBackgroundTimer();
+      // BackgroundTimer.stop();
     }
 
     return () => {

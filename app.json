@@ -43,6 +43,12 @@
             "targetSdkVersion": 33
           }
         }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow jsm-react-native to access your microphone."
+        }
       ]
     ],
     "experiments": {

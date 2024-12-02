@@ -4,7 +4,4 @@ npx expo run:ios --device
 
 Add alarm flow
 
-User choose time sleep
-Click button sleep
-Generate cycle sleep
-In cycle sleep user can click time want to sleep -> set alarm
+Will added background timer when playsound to keep background run !
