@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, Children } from "react";
+import React, { useEffect, useState, useRef, Children, useMemo } from "react";
 import { View, Platform, FlatList, Text, Switch } from "react-native";
 import notifee, { AndroidImportance } from "@notifee/react-native";
 import DateTimePicker, {
@@ -283,6 +283,7 @@ const App: React.FC = () => {
   const clearSpecificAlarm = async (index?: number) => {
     // unregisterBackgroundFetchAsync();
     //Clear alarm, and cancel all notification
+    BackgroundTimer.stopBackgroundTimer();
     stopSound();
     setIsAlarm(false);
     const removeAlarms = alarms.filter((_, indexAlarm) => indexAlarm !== index);
@@ -405,6 +406,7 @@ const App: React.FC = () => {
                   // thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
                   ios_backgroundColor="#3e3e3e"
                   onValueChange={() => {
+                    BackgroundTimer.stopBackgroundTimer();
                     console.log("toggle");
                     const newAlarm = alarms.map((itemNew, indexNew) => {
                       if (index === indexNew) {
