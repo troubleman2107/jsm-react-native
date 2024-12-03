@@ -1,5 +1,13 @@
 import React, { useEffect, useState, useRef, Children, useMemo } from "react";
-import { View, Platform, FlatList, Text, Switch } from "react-native";
+import {
+  View,
+  Platform,
+  FlatList,
+  Text,
+  Switch,
+  SafeAreaView,
+  ScrollView,
+} from "react-native";
 import notifee, {
   AndroidImportance,
   TimestampTrigger,
@@ -9,12 +17,13 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import CustomButton from "@/components/CustomButton";
-import { router } from "expo-router";
+import { router, useNavigation } from "expo-router";
 import Home, { WakeTimeProps } from "./(tabs)/home";
 import BackgroundTimer from "react-native-background-timer";
 import Sound from "react-native-sound";
 import { Power } from "lucide-react-native";
 import { Icon } from "react-native-elements";
+import { navigate } from "expo-router/build/global-state/routing";
 
 type AlarmType = {
   active: boolean;
@@ -33,71 +42,20 @@ const App: React.FC = () => {
   const alarmRef = useRef<NodeJS.Timeout | null>(null);
   const [alarms, setAlarms] = useState<AlarmsType>([]);
   const [newAlarmTime, setNewAlarmTime] = useState<Date>(new Date());
-  const [sleepTime, setSleepTime] = useState<Date>();
   const [cycleTime, setCycleTime] = useState<WakeTimeProps[]>([]);
   const [isAlarm, setIsAlarm] = useState<boolean>(false);
   const [idAlarm, setIdAlarm] = useState<number>();
   const [isCycle, setIsCycle] = useState<boolean>(true);
 
-  console.log("🚀 ~ idAlarm:", idAlarm);
+  console.log("🚀 ~ newAlarmTime:", newAlarmTime);
 
   const soundRef = useRef<Sound | null>(null);
 
-  console.log("alarms", alarms);
-
-  const prepareSound = () => {
-    if (soundRef && !soundRef.current?.isLoaded()) {
-      soundRef.current = new Sound("alarm2.mp3", Sound.MAIN_BUNDLE, (error) => {
-        if (error) {
-          console.error("Failed to load sound", error);
-          return;
-        }
-        // Play the sound
-        // BackgroundTimer.runBackgroundTimer(() => {
-        if (soundRef.current) {
-          soundRef.current.play((success) => {
-            console.log("🚀 ~ soundRef.current.play ~ success:", success);
-            if (!success) {
-              console.error(
-                "Sound playback failed due to audio decoding errors."
-              );
-            }
-          });
-          soundRef.current.setVolume(0);
-          soundRef.current.setNumberOfLoops(-1);
-        }
-        // }, 1000);
-      });
-    }
-  };
-
   const playSound = () => {
     if (soundRef.current) {
-      console.log("🚀 ~ playSound ~ soundRef.current:", soundRef.current);
       soundRef.current.setVolume(1);
-      // soundRef.current.setVolume(1);
-      // soundRef.current = new Sound("alarm2.mp3", Sound.MAIN_BUNDLE, (error) => {
-      //   if (error) {
-      //     console.error("Failed to load sound", error);
-      //     return;
-      //   }
-      //   // Play the sound
-      //   if (soundRef.current) {
-      //     soundRef.current.play((success) => {
-      //       if (!success) {
-      //         console.error(
-      //           "Sound playback failed due to audio decoding errors."
-      //         );
-      //       }
-      //     });
-      //   }
-      // });
     }
   };
-
-  // useEffect(() => {
-  //   prepareSound();
-  // }, []);
 
   const stopSound = () => {
     if (soundRef.current) {
@@ -108,6 +66,12 @@ const App: React.FC = () => {
       console.warn("No sound instance to stop.");
     }
   };
+
+  useEffect(() => {
+    setAlarms([]);
+    setCycleTime([]);
+    BackgroundTimer.stopBackgroundTimer();
+  }, [isCycle]);
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -140,7 +104,6 @@ const App: React.FC = () => {
             now.getMinutes() === alarmTime?.time?.getMinutes()
           ) {
             setIdAlarm(alarmIndex);
-            // updateIsAlarm(alarms, alarmIndex);
             setIsAlarm(true);
             if (timeCheckRef.current) {
               clearInterval(timeCheckRef.current);
@@ -158,7 +121,6 @@ const App: React.FC = () => {
     if (alarms.length > 0 && alarms.find((item) => item.active)) {
       // BackgroundTimer.start();
       if (soundRef && !soundRef.current?.isLoaded()) {
-        console.log("prepare success");
         soundRef.current = new Sound(
           "alarm2.mp3",
           Sound.MAIN_BUNDLE,
@@ -172,7 +134,6 @@ const App: React.FC = () => {
               checkAlarmTimes();
               if (soundRef.current) {
                 soundRef.current.play((success) => {
-                  console.log("🚀 ~ soundRef.current.play ~ success:", success);
                   if (!success) {
                     console.error(
                       "Sound playback failed due to audio decoding errors."
@@ -211,12 +172,7 @@ const App: React.FC = () => {
   }, [alarms]);
 
   useEffect(() => {
-    if (sleepTime) {
-      calculateSleepCycles(sleepTime);
-    }
-  }, [sleepTime]);
-
-  useEffect(() => {
+    console.log("cycleTime", cycleTime);
     if (cycleTime) {
       const activeAlarm = cycleTime
         .filter((item) => item.alarm)
@@ -245,17 +201,6 @@ const App: React.FC = () => {
       if (activeAlarm.length > 0) setAlarms(activeAlarm);
     }
   }, [cycleTime]);
-
-  const updateIsAlarm = (alarms: AlarmsType, indexAlarms: number) => {
-    const newUpdate = alarms.map((item, index) => {
-      if (index === indexAlarms) {
-        item.isAlarm = true;
-      }
-      return item;
-    });
-
-    setAlarms(newUpdate);
-  };
 
   const scheduleRepeatingNotification = async (alarmTime: Date | undefined) => {
     console.log("notifee");
@@ -311,8 +256,6 @@ const App: React.FC = () => {
     setNewAlarmTime(currentDate);
   };
 
-  console.log("cycleTime", cycleTime);
-
   function calculateSleepCycles(inputDate: Date) {
     // Create a Date object from the input
     const startTime = new Date(inputDate);
@@ -328,7 +271,6 @@ const App: React.FC = () => {
     ];
 
     if (!isCycle) {
-      console.log("run this");
       setCycleTime([
         {
           timeRaw: newAlarmTime,
@@ -376,6 +318,7 @@ const App: React.FC = () => {
   }
 
   const handleAlarm = (time: Date, id: number) => {
+    BackgroundTimer.stopBackgroundTimer();
     if (time) {
       const activeAlarm = cycleTime.map((item, index) => {
         if (index === id && !item.alarm) {
@@ -427,6 +370,8 @@ const App: React.FC = () => {
   //   onCreateTriggerNotification();
   // }
 
+  const navigation = useNavigation();
+
   return (
     <View className="flex flex-1 items-center justify-center p-8 bg-[#0f0817]">
       <DateTimePicker
@@ -439,7 +384,7 @@ const App: React.FC = () => {
       />
       <CustomButton
         handlePress={() => {
-          setSleepTime(newAlarmTime);
+          calculateSleepCycles(newAlarmTime);
         }}
         title={`${isCycle ? "Sleep 💤" : "Wake Up 🌞"}`}
         containerStyles="w-full h-[60px]"
@@ -456,54 +401,52 @@ const App: React.FC = () => {
           value={isCycle}
         />
       </View>
-      {/* <Text className="text-white text-3xl mb-4">{`${new Date().toLocaleTimeString(
-        "en-US",
-        { hour: "2-digit", minute: "2-digit", hour12: false }
-      )}`}</Text> */}
-      {cycleTime.length > 0 && (
+      {cycleTime.length > 0 && isCycle && (
         <>
           <Home cycleTime={cycleTime} handleAlarm={handleAlarm} />
         </>
       )}
-      <View>
-        <FlatList
-          className={`flex-grow-0 ${isCycle ? "h-[25vh]" : "h-[35vh]"}`}
-          data={alarms}
-          renderItem={({ item, index }) => (
-            <View className="flex flex-row justify-between items-center w-full bg-white/10 backdrop-blur-sm mt-2 rounded-2xl p-4 shadow-slate-200">
-              <Text className="text-white text-3xl">{`${item.time.toLocaleTimeString(
-                "en-US",
-                { hour: "2-digit", minute: "2-digit", hour12: false }
-              )}`}</Text>
-              <View className="flex flex-row justify-between items-center gap-3">
-                <Switch
-                  trackColor={{ false: "#767577", true: "#FF9C01" }}
-                  // thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
-                  ios_backgroundColor="#0f0817"
-                  onValueChange={() => {
-                    BackgroundTimer.stopBackgroundTimer();
-                    const newAlarm = alarms.map((itemNew, indexNew) => {
-                      if (index === indexNew) {
-                        itemNew.active = !item.active;
-                      }
-                      return itemNew;
-                    });
-                    setAlarms(newAlarm);
-                  }}
-                  value={item.active ? true : false}
-                />
-                {isAlarm && item.active && index === idAlarm && (
-                  <CustomButton
-                    handlePress={() => clearSpecificAlarm(index)}
-                    title="Stop"
-                    containerStyles="w-[75px] p-2"
+      {cycleTime.length > 0 && (
+        <View>
+          <FlatList
+            className={`flex-grow-0 ${isCycle ? "h-[25vh]" : "mt-5"}`}
+            data={alarms}
+            renderItem={({ item, index }) => (
+              <View className="flex flex-row justify-between items-center w-full bg-white/10 backdrop-blur-sm mt-2 rounded-2xl p-4 shadow-slate-200">
+                <Text className="text-white text-3xl">{`${item.time.toLocaleTimeString(
+                  "en-US",
+                  { hour: "2-digit", minute: "2-digit", hour12: false }
+                )}`}</Text>
+                <View className="flex flex-row justify-between items-center gap-3">
+                  <Switch
+                    trackColor={{ false: "#767577", true: "#FF9C01" }}
+                    // thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
+                    ios_backgroundColor="#0f0817"
+                    onValueChange={() => {
+                      BackgroundTimer.stopBackgroundTimer();
+                      const newAlarm = alarms.map((itemNew, indexNew) => {
+                        if (index === indexNew) {
+                          itemNew.active = !item.active;
+                        }
+                        return itemNew;
+                      });
+                      setAlarms(newAlarm);
+                    }}
+                    value={item.active ? true : false}
                   />
-                )}
+                  {isAlarm && item.active && index === idAlarm && (
+                    <CustomButton
+                      handlePress={() => clearSpecificAlarm(index)}
+                      title="Stop"
+                      containerStyles="w-[75px] p-2"
+                    />
+                  )}
+                </View>
               </View>
-            </View>
-          )}
-        />
-      </View>
+            )}
+          />
+        </View>
+      )}
     </View>
   );
 };

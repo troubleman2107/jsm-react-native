@@ -5,8 +5,8 @@ import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 
 export interface WakeTimeProps {
   time: string;
-  cycles: number;
-  hours: string;
+  cycles?: number;
+  hours?: string;
   colorClass: string;
   alarm: boolean;
   timeRaw: Date;
@@ -54,17 +54,8 @@ export default function Home({
   // ];
 
   return (
-    <ScrollView className="flex-1 bg-[#0f0817]">
+    <View className="flex-1 bg-[#0f0817]">
       <View className="flex-1 flex items-center justify-center">
-        {/* Current Time Display */}
-        <View className="items-center mb-8">
-          {/* <Text className="mb-2">🌙</Text> */}
-          {/* <View className="flex-row items-center space-x-2">
-            <Text className="text-white text-4xl font-bold">10:41</Text>
-            <Text className="text-white text-2xl">PM</Text>
-          </View> */}
-        </View>
-
         {/* Wake Up Times Section */}
         <Text className="text-white text-xl mb-4">Best wake up times:</Text>
         <View className="flex-row flex-wrap justify-between gap-y-4">
@@ -78,6 +69,6 @@ export default function Home({
           ))}
         </View>
       </View>
-    </ScrollView>
+    </View>
   );
 }
