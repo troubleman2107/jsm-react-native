@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useRef, Children, useMemo } from "react";
 import { View, Platform, FlatList, Text, Switch } from "react-native";
-import notifee, { AndroidImportance } from "@notifee/react-native";
+import notifee, {
+  AndroidImportance,
+  TimestampTrigger,
+  TriggerType,
+} from "@notifee/react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
@@ -33,6 +37,8 @@ const App: React.FC = () => {
   const [cycleTime, setCycleTime] = useState<WakeTimeProps[]>([]);
   const [isAlarm, setIsAlarm] = useState<boolean>(false);
   const [idAlarm, setIdAlarm] = useState<number>();
+  const [isCycle, setIsCycle] = useState<boolean>(true);
+
   console.log("🚀 ~ idAlarm:", idAlarm);
 
   const soundRef = useRef<Sound | null>(null);
@@ -205,7 +211,9 @@ const App: React.FC = () => {
   }, [alarms]);
 
   useEffect(() => {
-    if (sleepTime) calculateSleepCycles(sleepTime);
+    if (sleepTime) {
+      calculateSleepCycles(sleepTime);
+    }
   }, [sleepTime]);
 
   useEffect(() => {
@@ -233,8 +241,6 @@ const App: React.FC = () => {
           });
         }
       }
-
-      console.log("🚀 ~ useEffect ~ activeAlarm:", activeAlarm);
 
       if (activeAlarm.length > 0) setAlarms(activeAlarm);
     }
@@ -305,6 +311,8 @@ const App: React.FC = () => {
     setNewAlarmTime(currentDate);
   };
 
+  console.log("cycleTime", cycleTime);
+
   function calculateSleepCycles(inputDate: Date) {
     // Create a Date object from the input
     const startTime = new Date(inputDate);
@@ -318,6 +326,24 @@ const App: React.FC = () => {
       "text-[#6bff84]", // Last two cycles (green)
       "text-[#6bff84]",
     ];
+
+    if (!isCycle) {
+      console.log("run this");
+      setCycleTime([
+        {
+          timeRaw: newAlarmTime,
+          time: newAlarmTime.toLocaleString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          }),
+          alarm: true,
+          colorClass: colorClasses[4],
+        },
+      ]);
+
+      return;
+    }
 
     // Generate sleep cycles
     const sleepCycles = [];
@@ -364,6 +390,43 @@ const App: React.FC = () => {
     }
   };
 
+  // async function onCreateTriggerNotification() {
+  //   console.log("trigger !");
+  //   const date = new Date(Date.now());
+  //   date.setHours(12);
+  //   date.setMinutes(0);
+
+  //   // Create a time-based trigger
+  //   const trigger: TimestampTrigger = {
+  //     type: TriggerType.TIMESTAMP,
+  //     timestamp: newAlarmTime.getTime(), // fire at 11:10am (10 minutes before meeting)
+  //   };
+
+  //   // Create a trigger notification
+  //   await notifee.createTriggerNotification(
+  //     {
+  //       title: "Meeting with Jane",
+  //       body: "Today at 11:20am",
+  //       android: {
+  //         channelId: "your-channel-id",
+  //       },
+  //       ios: {
+  //         sound: "default",
+  //       },
+  //     },
+  //     trigger
+  //   );
+  // }
+
+  // async function handleTriggerNotifi() {
+  //   onCreateTriggerNotification();
+  //   onCreateTriggerNotification();
+  //   onCreateTriggerNotification();
+  //   onCreateTriggerNotification();
+  //   onCreateTriggerNotification();
+  //   onCreateTriggerNotification();
+  // }
+
   return (
     <View className="flex flex-1 items-center justify-center p-8 bg-[#0f0817]">
       <DateTimePicker
@@ -378,9 +441,25 @@ const App: React.FC = () => {
         handlePress={() => {
           setSleepTime(newAlarmTime);
         }}
-        title="Sleep"
+        title={`${isCycle ? "Sleep 💤" : "Wake Up 🌞"}`}
         containerStyles="w-full h-[60px]"
       />
+      <View className="flex flex-row justify-between items-center mt-5 w-[110px]">
+        <Text className="text-white text-2xl">Cycle</Text>
+        <Switch
+          trackColor={{ false: "#767577", true: "#FF9C01" }}
+          // thumbColor={isEnabled ? "#f5dd4b" : "#f4f3f4"}
+          ios_backgroundColor="#0f0817"
+          onValueChange={() => {
+            setIsCycle(!isCycle);
+          }}
+          value={isCycle}
+        />
+      </View>
+      {/* <Text className="text-white text-3xl mb-4">{`${new Date().toLocaleTimeString(
+        "en-US",
+        { hour: "2-digit", minute: "2-digit", hour12: false }
+      )}`}</Text> */}
       {cycleTime.length > 0 && (
         <>
           <Home cycleTime={cycleTime} handleAlarm={handleAlarm} />
@@ -388,11 +467,11 @@ const App: React.FC = () => {
       )}
       <View>
         <FlatList
-          className="flex-grow-0 h-[30vh]"
+          className={`flex-grow-0 ${isCycle ? "h-[25vh]" : "h-[35vh]"}`}
           data={alarms}
           renderItem={({ item, index }) => (
-            <View className="flex flex-row justify-between items-center w-full">
-              <Text className="text-white text-3xl mb-4">{`${item.time.toLocaleTimeString(
+            <View className="flex flex-row justify-between items-center w-full bg-white/10 backdrop-blur-sm mt-2 rounded-2xl p-4 shadow-slate-200">
+              <Text className="text-white text-3xl">{`${item.time.toLocaleTimeString(
                 "en-US",
                 { hour: "2-digit", minute: "2-digit", hour12: false }
               )}`}</Text>

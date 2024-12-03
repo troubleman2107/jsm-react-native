@@ -1,7 +1,4 @@
-To run in ios
-
+dev:
 npx expo run:ios --device
-
-Add alarm flow
-
-Will added background timer when playsound to keep background run !
+build:
+xed ios
